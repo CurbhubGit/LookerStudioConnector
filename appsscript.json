@@ -1,0 +1,17 @@
+{
+  "dataStudio": {
+    "name": "Curbhub DataProvider Connect",
+    "logoUrl": "https://raw.githubusercontent.com/curbhub/lookerstudioconnector/master/icon/logoConnector128.png",
+    "company": "Curbhub",
+    "companyUrl": "https://curbhub.io/",
+    "addonUrl": "https://github.com/curbhub/lookerstudioconnector/README.md",
+    "supportUrl": "https://github.com/curbhub/lookerstudioconnector/issues/new?title=Curbhub%20DataProvider%20Connect%20Connector%20Issue",
+    "shortDescription": "Easily connect to Curbhub's DataProvider services.",
+    "description": "The Curbhub DataProvider Connector enables users to seamlessly fetch and visualize data from Curbhub's DataProvider platform through REST API integration. This connector is designed to provide reliable access to structured data for creating meaningful reports and dashboards in Looker Studio.",
+    "sources": ["CUSTOM_JSON"],
+    "authType": ["NONE"],
+    "feeType": ["FREE"]
+  },
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER"
+}
