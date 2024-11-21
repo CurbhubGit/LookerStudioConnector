@@ -25,7 +25,7 @@ function getConfig(request) {
 }
 
 function getSchema(request) {
-  var CACHE_EXPIRATION_SECONDS = 3600 * 24;
+  var CACHE_EXPIRATION_SECONDS = 3600;
   var schema = [];
   if (request?.configParams?.backend_url && request?.configParams?.table) {
     var cache = CacheService.getScriptCache();
@@ -59,30 +59,29 @@ function getSchema(request) {
 
         var aggregations = cc.AggregationType;
         content.data.fields.forEach(function (field) {
-          if (field.additionalData?.semantics?.conceptType === "DIMENSION") {
-            var f = fields
-              .newDimension()
-              .setId(field.name)
-              .setName(field.label);
+          var f =
+            field.additionalData?.semantics?.conceptType === "DIMENSION"
+              ? fields.newDimension()
+              : fields.newMetric();
+          f.setId(field.name)
+            .setName(field.label)
+            .setType(cc.FieldType[field.dataType]);
 
-            if (cc.FieldType[field.additionalData.semantics.semanticType]) {
-              f.setType(
-                cc.FieldType[field.additionalData.semantics.semanticType]
-              );
-            }
-          } else {
-            var f = fields
-              .newMetric()
-              .setId(field.name)
-              .setName(field.label)
-              .setType(cc.FieldType[field.dataType]);
-
-            if (aggregations[field.additionalData?.defaultAggregationType]) {
-              f.setAggregation(
-                aggregations[field.additionalData?.defaultAggregationType]
-              );
-            }
+          if (cc.FieldType[field.additionalData.semantics.semanticType]) {
+            f.setType(
+              cc.FieldType[field.additionalData.semantics.semanticType]
+            );
           }
+
+          if (aggregations[field.additionalData?.defaultAggregationType]) {
+            f.setAggregation(
+              aggregations[field.additionalData?.defaultAggregationType]
+            );
+          }
+
+          // if(isDateField(field.additionalData)){
+          //   f.setType(cc.FieldType.YEAR_MONTH_DAY_MINUTE);
+          // }
         });
         schema = fields.build();
         cache.put(
@@ -94,6 +93,40 @@ function getSchema(request) {
     }
   }
   return { schema: schema };
+}
+
+function convertDate(val, fieldType) {
+  var date = new Date(val);
+  if (!(date instanceof Date)) {
+    console.log("Invalid input: Expected a Date object.");
+  } else {
+    var year = date.getFullYear();
+    var month = ("0" + String(date.getMonth() + 1)).slice(-2);
+    var day = ("0" + String(date.getDate())).slice(-2);
+    var hour = ("0" + String(date.getHours())).slice(-2);
+    var minute = ("0" + String(date.getMinutes())).slice(-2);
+    var second = ("0" + String(date.getSeconds())).slice(-2);
+    switch (fieldType) {
+      case "YEAR_MONTH_DAY":
+        return `${year}${month}${day}`;
+      case "YEAR_MONTH_DAY_HOUR":
+        return `${year}${month}${day}${hour}`;
+      case "YEAR_MONTH_DAY_MINUTE":
+        return `${year}${month}${day}${hour}${minute}`;
+      case "YEAR_MONTH_DAY_SECOND":
+        return `${year}${month}${day}${hour}${minute}${second}`;
+    }
+  }
+  return val;
+}
+
+function isDateField(field) {
+  return [
+    "YEAR_MONTH_DAY",
+    "YEAR_MONTH_DAY_HOUR",
+    "YEAR_MONTH_DAY_MINUTE",
+    "YEAR_MONTH_DAY_SECOND",
+  ].includes(field?.semantics?.semanticType ?? "");
 }
 
 function getData(request) {
@@ -132,14 +165,21 @@ function getData(request) {
     let schemaIdx = tableSchema.findIndex((s) => s.name === field.name);
     if (schemaIdx >= 0) {
       fieldIndexes.push(schemaIdx);
-      schema.push(tableSchema[schemaIdx]);
+      let dataScema = {
+        name: field.name,
+        dataType: tableSchema[schemaIdx].dataType,
+      };
+      schema.push(dataScema);
     }
   });
   if (content?.data?.length) {
     rows = content.data.map(function (item) {
       return {
         values: fieldIndexes.map((idx) => {
-          return item[idx];
+          return convertDate(
+            item[idx],
+            tableSchema[idx].semantics?.semanticType ?? ""
+          );
         }),
       };
     });
@@ -147,6 +187,8 @@ function getData(request) {
     rows = [];
   }
   console.log(`${rows.length} rows fetched`);
+  // console.log(schema);
+  // console.log(rows);
   return {
     schema: schema,
     rows: rows,
